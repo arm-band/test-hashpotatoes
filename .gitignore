@@ -1,0 +1,17 @@
+/remote/.htaccess
+/remote/.htpasswd
+/remote/src/config.php
+/remote/dist/**/*
+!/remote/dist/.gitkeep
+/remote/logs/**/*
+!/remote/logs/.gitkeep
+/local/src/config.php
+/local/target/**/*
+!/local/target/.gitkeep
+/local/logs/**/*
+!/local/logs/.gitkeep
+/local/dist/**/*
+!/local/dist/.gitkeep
+/local/vendor/
+composer.lock
+path.php

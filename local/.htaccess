@@ -1,0 +1,6 @@
+SetEnvIf Request_URI "(\.(log|txt|dat|dist|csv|ini|tpl|yml|xml|json|env|htaccess|htpasswd|md)|/(app|bin|logs|migrations|src|dist|tests|tmp|var|vendor)(.)*/)$" ng_dir
+Order Allow,Deny
+Allow from all
+Deny from env=ng_dir
+
+Options All -Indexes

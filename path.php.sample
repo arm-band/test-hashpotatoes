@@ -1,0 +1,5 @@
+<?php
+
+return [
+    'path' => '/var/www/sample/.htpasswd',
+];

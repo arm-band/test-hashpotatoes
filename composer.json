@@ -1,0 +1,19 @@
+{
+    "name": "arm-band/hashbrownbotates",
+    "description": "files-update detector by a hash value.",
+    "license": "MIT",
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^7.5.0",
+        "phpmailer/phpmailer": "^v6.6.5"
+    },
+    "config": {
+        "process-timeout": 0,
+        "sort-packages": true,
+        "vendor-dir": "local/vendor"
+    },
+    "scripts": {
+        "start": "php htGenerate.php"
+    }
+}
