@@ -22,7 +22,7 @@ $currentDir = __DIR__;
 $httpStatusCode = 200;
 $hashedPotatoes = [];
 
-if (!file_exists($currentDir . '/target/')) {
+if (!file_exists($currentDir . '/origin/')) {
     $httpStatusCode = 404;
     header('HTTP/1.1 ' . $httpStatusCode . ' Not Found.');
     die('監視対象用のディレクトリが存在しません。');
@@ -48,17 +48,7 @@ if (version_compare(phpversion(), '7.0.0', '<')) {
 $guzzleClient = new Client();
 $options = [
     'version' => 1.1,
-    'headers' => [
-        'Content-Type' => 'application/vnd.json+api',
-    ],
 ];
-
-if($CONFIG['basicAuth']['auth']) {
-    $options['auth'] = [
-        $CONFIG['basicAuth']['user'],
-        $CONFIG['basicAuth']['password'],
-    ];
-}
 
 /**
  * _h
@@ -125,38 +115,6 @@ function jsonEncodePretty($data)
 }
 
 /**
- * jsonDecode
- *
- * @param string $data
- * @return array
- */
-function jsonDecode($data)
-{
-    return json_decode($data, true);
-}
-
-/**
- * getInfo
- *
- * @param array $CONFIG
- * @param array $options
- * @param Object $guzzleClient
- * @return Object Guzzle Response Object
- */
-function getInfo($CONFIG, $options, $guzzleClient)
-{
-    try {
-        $response = $guzzleClient->get(
-            $CONFIG['target'],
-            $options,
-        );
-        return $response->getBody()->getContents();
-    } catch (\Exception $e) {
-        return $e->getResponse()->getBody()->getContents();
-    }
-}
-
-/**
  * outputLog
  *
  * @param string $status
@@ -166,7 +124,7 @@ function getInfo($CONFIG, $options, $guzzleClient)
  */
 function outputLog($status, $msg, $currentDir) {
     $date = date('Ymd');
-    $filename = $currentDir . '/logs/log-' . $date . '.log';
+    $filename = $currentDir . '/logs/log-nibble-' . $date . '.log';
     $line = '';
     if(file_exists($filename)) {
         $line .= "\n";
@@ -185,7 +143,7 @@ function outputLog($status, $msg, $currentDir) {
  */
 function outputResults($results, $currentDir) {
     $datetime = date('Ymd_h_i_s');
-    $filename = $currentDir . '/dist/results-' . $datetime . '.json';
+    $filename = $currentDir . '/dist/results-nibble-' . $datetime . '.json';
     return file_put_contents($filename, $results, LOCK_EX);
 }
 
@@ -200,12 +158,22 @@ function mailSend($CONFIG, $results) {
     $mismatches = '';
     foreach ($results['mismatch'] as $k => $v) {
         $mismatches .= PHP_EOL . $k;
-
+    }
+    $errors = '';
+    foreach ($results['error'] as $k => $v) {
+        $errors .= PHP_EOL . $k . ': ' . $v['code'] . ', ' . $v['reasonPhrase'];
     }
     $body = <<<EOF
 Webサイト {$CONFIG['commons']['website']} で
-原本と不一致だったファイルの一覧です。
+原本と不一致、またはエラーだったファイルの一覧です。
+
+## 不一致
 {$mismatches}
+
+
+## エラー
+{$errors}
+
 
 --
 このメールは {$CONFIG['commons']['appName']} による自動送信です。
@@ -255,7 +223,7 @@ function walkAndEat(&$hashedPotatoes, $currentDir, $CONFIG) {
         if (
             $file->isDot()
             || startsWith($file->getPathname(), __DIR__ . '/hashpotatoes.php') !== false
-            || startsWith($file->getPathname(), __DIR__ . '/target/.gitkeep') !== false
+            || startsWith($file->getPathname(), __DIR__ . '/origin' . DIRECTORY_SEPARATOR . '.gitkeep') !== false
             || startsWith($file->getPathname(), __DIR__ . '/src/') !== false
             || startsWith($file->getPathname(), __DIR__ . '/logs/') !== false
         ) {
@@ -276,7 +244,7 @@ function walkAndEat(&$hashedPotatoes, $currentDir, $CONFIG) {
                             DIRECTORY_SEPARATOR,
                             '/',
                             __DIR__
-                        ) . '/target/',
+                        ) . '/origin/',
                         '/',
                         str_replace(
                             DIRECTORY_SEPARATOR,
@@ -297,26 +265,69 @@ function walkAndEat(&$hashedPotatoes, $currentDir, $CONFIG) {
 }
 
 /**
+ * nibble
+ *
+ * @param array $hashedPotatoes
+ * @param array $CONFIG
+ * @param array $options
+ * @param Object $guzzleClient
+ * @return array $results
+ */
+function nibble($hashedPotatoes, $CONFIG, $options, $guzzleClient)
+{
+    $results = [
+        'match' => [],
+        'mismatch' => [],
+        'error' =>[],
+    ];
+    $targetURL = $CONFIG['target'];
+    if(mb_substr($targetURL, -1) === '/') {
+        // 末尾のスラッシュを削る
+        $targetURL = rtrim($targetURL, '/');
+    }
+    $cnt = 0;
+    foreach ($hashedPotatoes as $k => $v) {
+        if($CONFIG['pollingEach'] > 0 && $cnt % $CONFIG['pollingEach'] === 0) {
+            // $CONFIG['pollingEach'] のファイル数ごとに
+            if($CONFIG['pollingInterval'] > 0 && is_int($CONFIG['pollingInterval'])) {
+                // $CONFIG['pollingInterval'] 秒待機
+                sleep($CONFIG['pollingInterval']);
+            }
+        }
+        $hasedBrowns = '';
+        try {
+            $response = $guzzleClient->get(
+                $targetURL . $k,
+                $options,
+            );
+            $eatHashBrowns = hashedPotato(
+                $response->getBody()->getContents()
+            );
+            if($v === $eatHashBrowns) {
+                $results['match'][$k] = true;
+            }
+            else {
+                $results['mismatch'][$k] = false;
+            }
+        } catch (\Exception $e) {
+            $results['error'][$k] = [
+                'code'         => $e->getResponse()->getStatusCode(),
+                'reasonPhrase' => $e->getResponse()->getReasonPhrase(),
+            ];
+        }
+        $cnt++;
+    }
+    return $results;
+}
+
+/**
  * main process
  * 現在のディレクトリ配下について調べる
  */
 outputLog('INFO', '処理開始 (アクセス元: '. $_SERVER['REMOTE_ADDR'] . ', ユーザーエージェント: ' . $_SERVER['HTTP_USER_AGENT'] . ')', $currentDir);
 
-walkAndEat($hashedPotatoes, $currentDir . '/target/', $CONFIG);
-$eatHashBrowns = jsonDecode(getInfo($CONFIG, $options, $guzzleClient));
-
-$results = [
-    'match' => [],
-    'mismatch' => [],
-];
-foreach ($hashedPotatoes as $k => $v) {
-    if(array_key_exists($k, $eatHashBrowns) && $v === $eatHashBrowns[$k]) {
-        $results['match'][$k] = true;
-    }
-    else {
-        $results['mismatch'][$k] = false;
-    }
-}
+walkAndEat($hashedPotatoes, $currentDir . '/origin/', $CONFIG);
+$results = nibble($hashedPotatoes, $CONFIG, $options, $guzzleClient);
 
 outputResults(jsonEncodePretty($results), $currentDir);
 header('Content-Type: application/json; charset=utf-8');

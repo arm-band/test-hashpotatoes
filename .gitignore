@@ -8,6 +8,8 @@
 /local/src/config.php
 /local/target/**/*
 !/local/target/.gitkeep
+/local/origin/
+!/local/origin/.gitkeep
 /local/logs/**/*
 !/local/logs/.gitkeep
 /local/dist/**/*

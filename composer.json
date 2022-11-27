@@ -12,8 +12,5 @@
         "process-timeout": 0,
         "sort-packages": true,
         "vendor-dir": "local/vendor"
-    },
-    "scripts": {
-        "start": "php htGenerate.php"
     }
 }

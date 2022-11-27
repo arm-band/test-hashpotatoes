@@ -1,13 +1,15 @@
 <?php
 
 return [
-    'PROD_FLG'  => false,
-    'commons'   => [
+    'PROD_FLG'        => false,
+    'commons'         => [
         'appName' => 'Hashed Potatoes',
         'website' => 'SampleWebsite',
     ],
     'target'    => 'https://www.example.com/hashbrowns.php',
-    'mail'      => [
+    'pollingInterval' => 5,
+    'pollingEach'     => 10,
+    'mail'            => [
         'MAIL_HOST'     => 'smtp.mailtrap.io',
         'MAIL_USERNAME' => 'xxxxxxxxxxxxxx',
         'MAIL_PASSWORD' => 'xxxxxxxxxxxxxx',
@@ -16,12 +18,7 @@ return [
         'FROM_MAIL'     => 'hashvault@example.com',
         'TO_MAIL'       => 'hashvault@example.com',
     ],
-    'basicAuth' => [
-        'auth'     => true,
-        'user'     => 'Hashvault',
-        'password' => 'Password-1234',
-    ],
-    'exclude'   => [
+    'exclude'         => [
         'excludeFilesizeMax'   => 2147483647,
         'excludeFileExtension' => [
             'mp3',
