@@ -157,7 +157,7 @@ function outputResults($results, $currentDir) {
 function mailSend($CONFIG, $results) {
     $mismatches = '';
     foreach ($results['mismatch'] as $k => $v) {
-        $mismatches .= PHP_EOL . $k;
+        $mismatches .= PHP_EOL . $k . PHP_EOL . '    Last-Modified: ' . $v['lastModified'];
     }
     $errors = '';
     foreach ($results['error'] as $k => $v) {
@@ -303,11 +303,21 @@ function nibble($hashedPotatoes, $CONFIG, $options, $guzzleClient)
             $eatHashBrowns = hashedPotato(
                 $response->getBody()->getContents()
             );
+            $lastModified = '';
+            if(array_key_exists('Last-Modified', $response->getHeaders())) {
+                $lastModified = $response->getHeaders()['Last-Modified'][0];
+            }
             if($v === $eatHashBrowns) {
-                $results['match'][$k] = true;
+                $results['match'][$k] = [
+                    'match'        => true,
+                    'lastModified' => $lastModified,
+                ];
             }
             else {
-                $results['mismatch'][$k] = false;
+                $results['mismatch'][$k] = [
+                    'match'        => false,
+                    'lastModified' => $lastModified,
+                ];
             }
         } catch (\Exception $e) {
             $results['error'][$k] = [
@@ -324,6 +334,11 @@ function nibble($hashedPotatoes, $CONFIG, $options, $guzzleClient)
  * main process
  * 現在のディレクトリ配下について調べる
  */
+/** ユーザーエージェント */
+if (mb_strlen($CONFIG['userAgent'], 'UTF-8') > 0) {
+    $options['User-Agent'] = _h($CONFIG['userAgent']);
+}
+
 outputLog('INFO', '処理開始 (アクセス元: '. $_SERVER['REMOTE_ADDR'] . ', ユーザーエージェント: ' . $_SERVER['HTTP_USER_AGENT'] . ')', $currentDir);
 
 walkAndEat($hashedPotatoes, $currentDir . '/origin/', $CONFIG);
